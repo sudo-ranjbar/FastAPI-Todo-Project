@@ -1,4 +1,7 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, status
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.tasks.routes import router as tasks_routes
@@ -57,3 +60,28 @@ app.add_middleware(
 def private_route(user=Depends(get_authenticated_user)):
     print(user.id)
     return {"msg": "this is a private route"}
+
+@app.exception_handler(StarletteHTTPException)
+def http_exception_handler(request, exc):
+    error_response = {
+        "error": True,
+        "status_code": exc.status_code,
+        "detail": str(exc.detail)
+    }
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=error_response
+    )
+
+@app.exception_handler(RequestValidationError)
+def http_validation_exception_handler(request, exc):
+    error_response = {
+        "error": True,
+        "status_code": status.HTTP_422_UNPROCESSABLE_CONTENT,
+        "message": "There was a problem in your form content",
+        "detail": exc.errors()
+    }
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content=error_response
+    )
